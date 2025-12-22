@@ -1,0 +1,556 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  INVESTOR
+  STARTUP
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum StartupStage {
+  PRE_SEED
+  SEED
+  SERIES_A
+  SERIES_B
+  SERIES_C_PLUS
+}
+
+enum StartupCategory {
+  VERTICAL_SAAS
+  AI_AGENT
+  HORIZONTAL_SAAS
+  ML_INFRA
+  DEVTOOLS
+  FINTECH
+  HEALTHTECH
+  EDTECH
+}
+
+enum StartupStatus {
+  ACTIVE
+  ARCHIVED
+  FUNDED
+  PAUSED
+}
+
+enum InsightType {
+  CUSTOMER_WIN
+  PRODUCT_LAUNCH
+  HIRING
+  RISK
+  PARTNERSHIP
+  FUNDING
+  CHURN
+  PIVOT
+  MILESTONE
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ActivityType {
+  VIEWED
+  FAVORITED
+  CONTACTED
+  NOTED
+  UNFAVORITED
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id              String        @id @default(uuid())
+  email           String        @unique
+  name            String?
+  profilePhotoUrl String?       @map("profile_photo_url")
+  role            UserRole      @default(STARTUP)
+
+  // Supabase Auth Integration
+  supabaseAuthId  String?       @unique @map("supabase_auth_id")
+
+  // Invite System
+  invitedByUserId String?       @map("invited_by_user_id")
+  invitedBy       User?         @relation("UserInvites", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+  invitedUsers    User[]        @relation("UserInvites")
+
+  inviteToken     String?       @unique @map("invite_token")
+  inviteStatus    InviteStatus  @default(PENDING) @map("invite_status")
+  inviteSentAt    DateTime?     @map("invite_sent_at")
+  inviteExpiresAt DateTime?     @map("invite_expires_at")
+  inviteAcceptedAt DateTime?    @map("invite_accepted_at")
+
+  // Metadata
+  isActive        Boolean       @default(true) @map("is_active")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  lastLoginAt     DateTime?     @map("last_login_at")
+
+  // Relations
+  startup              Startup?
+  investorPreferences  InvestorPreferences?
+  activityLogs         ActivityLog[]
+
+  @@map("users")
+  @@index([email])
+  @@index([supabaseAuthId])
+  @@index([inviteToken])
+}
+
+model Startup {
+  id                  String          @id @default(uuid())
+  userId              String          @unique @map("user_id")
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Basic Info
+  companyName         String          @map("company_name")
+  tagline             String?
+  foundingDate        DateTime?       @map("founding_date")
+  website             String?
+  location            String?
+  logoUrl             String?         @map("logo_url")
+
+  // Classification
+  stage               StartupStage
+  category            StartupCategory
+
+  // Social
+  linkedinCompanyUrl  String?         @map("linkedin_company_url")
+  twitterHandle       String?         @map("twitter_handle")
+
+  // Content
+  elevatorPitch       String?         @db.Text @map("elevator_pitch")
+  problemStatement    String?         @db.Text @map("problem_statement")
+  solution            String?         @db.Text @map("solution")
+
+  // Documents (Supabase Storage URLs)
+  pitchDeckUrl        String?         @map("pitch_deck_url")
+  onePagerUrl         String?         @map("one_pager_url")
+  demoVideoUrl        String?         @map("demo_video_url")
+  financialModelUrl   String?         @map("financial_model_url")
+
+  // Status
+  status              StartupStatus   @default(ACTIVE)
+  isPublished         Boolean         @default(false) @map("is_published")
+
+  // Metadata
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+  lastScoreCalculated DateTime?       @map("last_score_calculated")
+
+  // Relations
+  founders            Founder[]
+  metrics             Metric[]
+  financials          Financial[]
+  market              Market?
+  scores              Score[]
+  insights            Insight[]
+  linkedinActivity    LinkedinActivity[]
+  activityLogs        ActivityLog[]
+
+  @@map("startups")
+  @@index([status, isPublished])
+  @@index([stage, category])
+  @@index([companyName])
+}
+
+model Founder {
+  id                  String    @id @default(uuid())
+  startupId           String    @map("startup_id")
+  startup             Startup   @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  // Personal Info
+  name                String
+  role                String    // CEO, CTO, COO, etc.
+  email               String?
+  phone               String?
+  linkedinUrl         String?   @map("linkedin_url")
+  photoUrl            String?   @map("photo_url")
+  bio                 String?   @db.Text
+
+  // Background
+  education           Json?     // [{degree, school, fieldOfStudy, graduationYear}]
+  previousCompanies   Json?     @map("previous_companies") // [{company, role, startDate, endDate, description}]
+
+  // Experience
+  yearsExperience     Int?      @map("years_experience")
+  domainExpertise     Json?     @map("domain_expertise") // [string] array
+  technicalSkills     Json?     @map("technical_skills") // [string] array
+
+  // Commitment
+  isFulltime          Boolean   @default(true) @map("is_fulltime")
+  equityPercentage    Float?    @map("equity_percentage")
+  hasVesting          Boolean   @default(false) @map("has_vesting")
+  vestingSchedule     String?   @map("vesting_schedule") // "4 year vest, 1 year cliff"
+
+  // Order
+  displayOrder        Int       @default(0) @map("display_order")
+
+  // Metadata
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  linkedinActivity    LinkedinActivity[]
+
+  @@map("founders")
+  @@index([startupId])
+  @@index([linkedinUrl])
+}
+
+model Metric {
+  id                  String    @id @default(uuid())
+  startupId           String    @map("startup_id")
+  startup             Startup   @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  // Revenue Metrics
+  mrr                 Float?    // Monthly Recurring Revenue
+  arr                 Float?    // Annual Recurring Revenue
+  revenue             Float?    // Total revenue (if not subscription)
+
+  // Customer Metrics
+  totalCustomers      Int?      @map("total_customers")
+  payingCustomers     Int?      @map("paying_customers")
+  trialCustomers      Int?      @map("trial_customers")
+
+  // Growth Metrics
+  momGrowthRate       Float?    @map("mom_growth_rate") // Month-over-month %
+  qoqGrowthRate       Float?    @map("qoq_growth_rate") // Quarter-over-quarter %
+  yoyGrowthRate       Float?    @map("yoy_growth_rate") // Year-over-year %
+
+  // Retention Metrics
+  churnRate           Float?    @map("churn_rate") // Monthly churn %
+  retentionRate       Float?    @map("retention_rate")
+  nrr                 Float?    // Net Revenue Retention
+
+  // Unit Economics
+  cac                 Float?    // Customer Acquisition Cost
+  ltv                 Float?    // Lifetime Value
+  ltvCacRatio         Float?    @map("ltv_cac_ratio")
+  paybackPeriod       Int?      @map("payback_period") // months
+
+  // Financial Health
+  burnRate            Float?    @map("burn_rate") // Monthly burn
+  runwayMonths        Int?      @map("runway_months")
+  grossMargin         Float?    @map("gross_margin") // %
+  cashBalance         Float?    @map("cash_balance")
+
+  // Engagement (for product metrics)
+  dau                 Int?      // Daily Active Users
+  mau                 Int?      // Monthly Active Users
+  dauMauRatio         Float?    @map("dau_mau_ratio")
+
+  // Recording Date (for historical tracking)
+  recordedAt          DateTime  @default(now()) @map("recorded_at")
+  notes               String?   @db.Text
+
+  @@map("metrics")
+  @@index([startupId, recordedAt])
+}
+
+model Financial {
+  id                  String    @id @default(uuid())
+  startupId           String    @map("startup_id")
+  startup             Startup   @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  // Previous Funding
+  totalFundingRaised  Float     @default(0) @map("total_funding_raised")
+  previousRounds      Json?     @map("previous_rounds")
+  // [{roundName, amount, date, leadInvestor, valuation}]
+  previousInvestors   Json?     @map("previous_investors") // [string]
+
+  // Current Ask
+  fundingTarget       Float?    @map("funding_target")
+  minimumRaise        Float?    @map("minimum_raise")
+  offeredDilution     Float?    @map("offered_dilution") // %
+  preMoneyValuation   Float?    @map("pre_money_valuation")
+  postMoneyValuation  Float?    @map("post_money_valuation")
+
+  // Use of Funds
+  useOfFunds          Json?     @map("use_of_funds")
+  // {engineering: 40%, sales: 30%, marketing: 20%, operations: 10%}
+
+  // Cap Table
+  founderEquity       Float?    @map("founder_equity") // %
+  employeePool        Float?    @map("employee_pool") // %
+  investorEquity      Float?    @map("investor_equity") // %
+
+  // Projections
+  projectedRevenue    Json?     @map("projected_revenue")
+  // {year1: X, year2: Y, year3: Z}
+  projectedCustomers  Json?     @map("projected_customers")
+
+  // Metadata
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@map("financials")
+  @@index([startupId])
+}
+
+model Market {
+  id                  String    @id @default(uuid())
+  startupId           String    @unique @map("startup_id")
+  startup             Startup   @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  // Market Size
+  tam                 Float?    // Total Addressable Market ($)
+  sam                 Float?    // Serviceable Addressable Market ($)
+  som                 Float?    // Serviceable Obtainable Market ($)
+
+  // Target Market
+  targetSector        String?   @map("target_sector")
+  targetIndustries    Json?     @map("target_industries") // [string]
+  targetGeography     String?   @map("target_geography")
+  targetCustomerType  String?   @map("target_customer_type") // B2B, B2C, B2B2C
+
+  // Ideal Customer Profile
+  idealCustomerProfile Json?    @map("ideal_customer_profile")
+  // {companySize, revenue, industry, geography, painPoints}
+
+  // Competition
+  competitors         Json?     // [{name, strengths, weaknesses, marketShare}]
+  competitiveLandscape String?  @db.Text @map("competitive_landscape")
+  differentiation     String?   @db.Text
+  moat                String?   @db.Text // Competitive advantage
+
+  // Market Dynamics
+  marketGrowthRate    Float?    @map("market_growth_rate") // %
+  marketTrends        Json?     @map("market_trends") // [string]
+  regulatoryFactors   String?   @db.Text @map("regulatory_factors")
+
+  // Go-to-Market
+  gtmStrategy         String?   @db.Text @map("gtm_strategy")
+  salesChannels       Json?     @map("sales_channels") // [string]
+
+  // Metadata
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@map("market")
+}
+
+model LinkedinActivity {
+  id                  String    @id @default(uuid())
+  founderId           String    @map("founder_id")
+  founder             Founder   @relation(fields: [founderId], references: [id], onDelete: Cascade)
+
+  startupId           String    @map("startup_id")
+  startup             Startup   @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  // Post Data
+  postDate            DateTime  @map("post_date")
+  postText            String    @db.Text @map("post_text")
+  postUrl             String?   @map("post_url")
+  postImageUrl        String?   @map("post_image_url")
+
+  // Engagement Metrics
+  likesCount          Int       @default(0) @map("likes_count")
+  commentsCount       Int       @default(0) @map("comments_count")
+  sharesCount         Int       @default(0) @map("shares_count")
+  impressions         Int?
+  engagementRate      Float?    @map("engagement_rate") // %
+
+  // AI Analysis (OpenAI GPT-4)
+  aiAnalysis          Json?     @map("ai_analysis")
+  /* Example structure:
+  {
+    signalType: "customer_win" | "product_launch" | "hiring" | "partnership" | "funding" | "other",
+    sentiment: "positive" | "neutral" | "negative",
+    strength: "low" | "medium" | "high",
+    insight: "Company announced a major enterprise deal...",
+    keywords: ["enterprise", "deal", "revenue"],
+    confidence: 0.85
+  }
+  */
+
+  aiAnalyzedAt        DateTime? @map("ai_analyzed_at")
+
+  // Metadata
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@map("linkedin_activity")
+  @@index([startupId, postDate])
+  @@index([founderId, postDate])
+}
+
+model Score {
+  id                  String    @id @default(uuid())
+  startupId           String    @map("startup_id")
+  startup             Startup   @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  // Overall Score
+  totalScore          Float     @map("total_score") // 0-100
+
+  // Component Scores (0-100 each)
+  founderScore        Float     @map("founder_score")
+  teamScore           Float     @map("team_score")
+  marketScore         Float     @map("market_score")
+  productScore        Float     @map("product_score")
+  tractionScore       Float     @map("traction_score")
+  financialScore      Float     @map("financial_score")
+  linkedinScore       Float     @map("linkedin_score")
+
+  // Detailed Breakdown
+  scoreBreakdown      Json      @map("score_breakdown")
+  /* Example:
+  {
+    founder: {
+      experience: 85,
+      commitment: 90,
+      network: 70
+    },
+    traction: {
+      revenue: 80,
+      growth: 75,
+      customers: 70,
+      unitEconomics: 85
+    },
+    ...
+  }
+  */
+
+  // Risk Assessment
+  riskPenalties       Json?     @map("risk_penalties")
+  /* Example:
+  [
+    {type: "high_churn", severity: "critical", impact: 20},
+    {type: "low_runway", severity: "high", impact: 15}
+  ]
+  */
+
+  overallRisk         String?   @map("overall_risk") // low, medium, high, critical
+
+  // Percentile (compared to similar startups)
+  percentile          Float?    // 0-100
+
+  // Metadata
+  calculatedAt        DateTime  @default(now()) @map("calculated_at")
+  calculationVersion  String    @default("1.0") @map("calculation_version")
+
+  @@map("scores")
+  @@index([startupId, calculatedAt])
+  @@index([totalScore])
+}
+
+model Insight {
+  id                  String       @id @default(uuid())
+  startupId           String       @map("startup_id")
+  startup             Startup      @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  // Insight Content
+  insightType         InsightType  @map("insight_type")
+  title               String
+  insightText         String       @db.Text @map("insight_text")
+  severity            Severity
+
+  // Source
+  sourceType          String       @map("source_type") // linkedin, manual, system, ai
+  sourceData          Json?        @map("source_data")
+  // Could reference LinkedIn post ID, metric change, etc.
+
+  // Visibility
+  isVisible           Boolean      @default(true) @map("is_visible")
+  isArchived          Boolean      @default(false) @map("is_archived")
+
+  // Metadata
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+
+  @@map("insights")
+  @@index([startupId, createdAt])
+  @@index([insightType, severity])
+}
+
+model InvestorPreferences {
+  id                    String    @id @default(uuid())
+  userId                String    @unique @map("user_id")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Stage & Category Preferences
+  preferredStages       Json?     @map("preferred_stages") // [StartupStage]
+  preferredCategories   Json?     @map("preferred_categories") // [StartupCategory]
+
+  // Score Threshold
+  minScoreThreshold     Float?    @default(0) @map("min_score_threshold") // 0-100
+
+  // Investment Size
+  ticketSizeMin         Float?    @map("ticket_size_min")
+  ticketSizeMax         Float?    @map("ticket_size_max")
+  typicalTicketSize     Float?    @map("typical_ticket_size")
+
+  // Sector & Geography
+  preferredSectors      Json?     @map("preferred_sectors") // [string]
+  preferredGeographies  Json?     @map("preferred_geographies") // [string]
+  excludedSectors       Json?     @map("excluded_sectors")
+  excludedGeographies   Json?     @map("excluded_geographies")
+
+  // Metrics Preferences
+  minMRR                Float?    @map("min_mrr")
+  minGrowthRate         Float?    @map("min_growth_rate") // %
+  minCustomers          Int?      @map("min_customers")
+  maxChurnRate          Float?    @map("max_churn_rate")
+
+  // Other Criteria
+  requireFullTimeFounders Boolean @default(false) @map("require_fulltime_founders")
+  minFoundersCount      Int?      @map("min_founders_count")
+  requireTechnicalCofounder Boolean @default(false) @map("require_technical_cofounder")
+
+  // Metadata
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@map("investor_preferences")
+}
+
+model ActivityLog {
+  id                  String       @id @default(uuid())
+  investorId          String       @map("investor_id")
+  investor            User         @relation(fields: [investorId], references: [id], onDelete: Cascade)
+
+  startupId           String       @map("startup_id")
+  startup             Startup      @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  // Activity Details
+  actionType          ActivityType @map("action_type")
+
+  // Private Notes (only visible to this investor)
+  notes               String?      @db.Text
+  rating              Int?         // 1-5 stars
+
+  // Meeting/Contact Info
+  contactDate         DateTime?    @map("contact_date")
+  nextFollowUp        DateTime?    @map("next_follow_up")
+
+  // Metadata
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+
+  @@map("activity_logs")
+  @@index([investorId, startupId])
+  @@index([investorId, actionType])
+  @@index([createdAt])
+}
