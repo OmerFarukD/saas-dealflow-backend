@@ -1,10 +1,11 @@
 import {
-  Injectable,
   ConflictException,
-  UnauthorizedException,
+  Injectable,
   Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { SupabaseService } from './supabase.service';
 import { RegisterDto } from './dto/register.dto';
@@ -19,6 +20,7 @@ export class AuthService {
     private prisma: PrismaService,
     private supabase: SupabaseService,
     private jwtService: JwtService,
+    private configService: ConfigService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -65,11 +67,11 @@ export class AuthService {
 
       this.logger.log(`Yeni kullanıcı kayıt oldu: ${updatedUser.email}`);
 
-      const token = this.generateToken(updatedUser);
+      const tokens = await this.generateTokens(updatedUser);
 
       return {
         user: updatedUser,
-        token,
+        ...tokens,
         message: 'Kayıt başarılı. Lütfen emailinizi kontrol ediniz.',
       };
     } catch (error) {
@@ -119,11 +121,11 @@ export class AuthService {
 
       this.logger.log(`Kullanıcı giriş yaptı: ${user.email}`);
 
-      const token = this.generateToken(user);
+      const tokens = await this.generateTokens(user);
 
       return {
         user,
-        token,
+        ...tokens,
       };
     } catch (error) {
       this.logger.error('Giriş başarısız', error);
@@ -134,6 +136,52 @@ export class AuthService {
 
       throw new UnauthorizedException('Giriş yapılırken bir hata oluştu');
     }
+  }
+
+  async refreshTokens(refreshToken: string) {
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: this.configService.get<string>('jwt.secret'),
+      });
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          refreshToken: true,
+        },
+      });
+
+      if (!user || !user.isActive) {
+        throw new UnauthorizedException('Geçersiz refresh token');
+      }
+
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException('Refresh token eşleşmiyor');
+      }
+
+      const tokens = await this.generateTokens(user);
+
+      this.logger.log(`Token yenilendi: ${user.email}`);
+
+      return tokens;
+    } catch (error) {
+      this.logger.error('Token yenileme başarısız', error);
+      throw new UnauthorizedException('Geçersiz veya süresi dolmuş token');
+    }
+  }
+
+  async logout(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: null },
+    });
+
+    return { message: 'Başarıyla çıkış yapıldı' };
   }
 
   async resetPassword(email: string) {
@@ -152,26 +200,44 @@ export class AuthService {
       await this.supabase.resetPassword(email);
 
       return {
-        message:
-          'E-posta adresi mevcutsa, sıfırlama bağlantısı gönderilmiştir',
+        message: 'E-posta adresi mevcutsa, sıfırlama bağlantısı gönderilmiştir',
       };
     } catch (error) {
       this.logger.error('Password reset failed', error);
 
       return {
-        message:
-          'E-posta adresi mevcutsa, sıfırlama bağlantısı gönderilmiştir',
+        message: 'E-posta adresi mevcutsa, sıfırlama bağlantısı gönderilmiştir',
       };
     }
   }
 
-  private generateToken(user: { id: string; email: string; role: string }) {
+  private async generateTokens(user: {
+    id: string;
+    email: string;
+    role: string;
+  }) {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       role: user.role,
     };
 
-    return this.jwtService.sign(payload);
+    const accessToken = this.jwtService.sign(payload, {
+      expiresIn: (this.configService.get<string>('jwt.accessTokenExpiresIn') || '15m') as any,
+    });
+
+    const refreshToken = this.jwtService.sign(payload, {
+      expiresIn: (this.configService.get<string>('jwt.refreshTokenExpiresIn') || '7d') as any,
+    });
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken },
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+    };
   }
 }

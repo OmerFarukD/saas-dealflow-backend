@@ -101,6 +101,7 @@ model User {
   inviteSentAt    DateTime?     @map("invite_sent_at")
   inviteExpiresAt DateTime?     @map("invite_expires_at")
   inviteAcceptedAt DateTime?    @map("invite_accepted_at")
+  refreshToken    String?       @map("refresh_token")
 
   // Metadata
   isActive        Boolean       @default(true) @map("is_active")
