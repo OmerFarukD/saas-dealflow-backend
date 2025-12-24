@@ -10,9 +10,10 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { RolesGuard } from './common/guards/roles.guard';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { StartupsModule } from './startups/startups.module';
 
 @Module({
-  imports: [DatabaseModule, ConfigModule, AuthModule, UsersModule],
+  imports: [DatabaseModule, ConfigModule, AuthModule, UsersModule, StartupsModule],
   controllers: [AppController],
   providers: [
     AppService,
