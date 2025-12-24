@@ -15,10 +15,16 @@ export interface ApiResponse<T> {
     page?: number;
     limit?: number;
     total?: number;
-    hasMore?: boolean;
+    totalPages?: number;
+    hasNext?: boolean;
+    hasPrevious?: boolean;
   };
 }
 
+/**
+ * Response'ları standart formata dönüştürür
+ * Pagination response'larını da destekler
+ */
 @Injectable()
 export class TransformInterceptor<T> implements NestInterceptor<
   T,
@@ -29,11 +35,29 @@ export class TransformInterceptor<T> implements NestInterceptor<
     next: CallHandler,
   ): Observable<ApiResponse<T>> {
     return next.handle().pipe(
-      map((data) => ({
-        success: true,
-        data,
-        error: null,
-      })),
+      map((response) => {
+        // Check if response is a paginated result
+        if (
+          response &&
+          typeof response === 'object' &&
+          'data' in response &&
+          'meta' in response
+        ) {
+          return {
+            success: true,
+            data: response.data,
+            meta: response.meta,
+            error: null,
+          };
+        }
+
+        // Standard response
+        return {
+          success: true,
+          data: response,
+          error: null,
+        };
+      }),
     );
   }
 }
