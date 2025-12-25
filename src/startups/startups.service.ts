@@ -33,7 +33,7 @@ export class StartupsService {
     });
 
     if (existingStartup) {
-      throw new ConflictException('Kullanıcının zaten bir startup\'ı mevcut.');
+      throw new ConflictException("Kullanıcının zaten bir startup'ı mevcut.");
     }
 
     const startup = await this.prisma.startup.create({
@@ -87,7 +87,9 @@ export class StartupsService {
     const where: Prisma.StartupWhereInput = {
       // Default: sadece aktif ve yayınlanmış
       ...(query.status ? { status: query.status } : { status: 'ACTIVE' }),
-      ...(query.isPublished !== undefined && { isPublished: query.isPublished }),
+      ...(query.isPublished !== undefined && {
+        isPublished: query.isPublished,
+      }),
 
       // Filters
       ...(query.stage && { stage: query.stage }),
@@ -229,7 +231,7 @@ export class StartupsService {
     // STARTUP rolü sadece kendi startup'ını görebilir
     if (userRole === UserRole.STARTUP && startup.userId !== userId) {
       throw new ForbiddenException(
-        'Sadece kendi startup\'ınızı görüntüleyebilirsiniz.',
+        "Sadece kendi startup'ınızı görüntüleyebilirsiniz.",
       );
     }
 

@@ -14,13 +14,20 @@ import { StartupsModule } from './startups/startups.module';
 import { MetricsModule } from './metrics/metrics.module';
 
 @Module({
-  imports: [DatabaseModule, ConfigModule, AuthModule, UsersModule, StartupsModule, MetricsModule],
+  imports: [
+    DatabaseModule,
+    ConfigModule,
+    AuthModule,
+    UsersModule,
+    StartupsModule,
+    MetricsModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
-    { provide: APP_GUARD, useClass: JwtAuthGuard},
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })

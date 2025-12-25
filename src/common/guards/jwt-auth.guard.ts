@@ -7,6 +7,15 @@ import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
+interface JwtUser {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  profilePhotoUrl: string | null;
+  isActive: boolean;
+}
+
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
   constructor(private reflector: Reflector) {
@@ -26,9 +35,12 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
-  handleRequest(err: any, user: any) {
+  handleRequest<TUser = JwtUser>(
+    err: Error | null,
+    user: TUser | false,
+  ): TUser {
     if (err || !user) {
-      throw err || new UnauthorizedException('Geçersiz veya eksik Token');
+      throw err ?? new UnauthorizedException('Geçersiz veya eksik Token');
     }
     return user;
   }

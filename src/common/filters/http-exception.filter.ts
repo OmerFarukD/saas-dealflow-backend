@@ -13,6 +13,18 @@ interface ValidationError {
   message: string;
 }
 
+interface ErrorResponseBody {
+  success: boolean;
+  data: null;
+  error: {
+    code: string;
+    message: string;
+    timestamp: string;
+    path: string;
+    details?: ValidationError[];
+  };
+}
+
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
@@ -40,13 +52,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
       } else if (typeof exceptionResponse === 'object') {
         const responseObj = exceptionResponse as Record<string, any>;
 
-        // Get the main message
-        message = responseObj.message;
-
-        // Handle array of messages (validation errors)
-        if (Array.isArray(responseObj.message)) {
-          message = responseObj.message[0]; // First error as main message
-          details = responseObj.message.map((msg: string) => ({
+        // Handle message based on type
+        if (typeof responseObj.message === 'string') {
+          message = responseObj.message;
+        } else if (Array.isArray(responseObj.message)) {
+          // Handle array of messages (validation errors)
+          const messages = responseObj.message as string[];
+          message = messages[0]; // First error as main message
+          details = messages.map((msg) => ({
             field: this.extractFieldFromMessage(msg),
             message: msg,
           }));
@@ -63,7 +76,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     );
 
     // Build clean response
-    const errorResponse: Record<string, any> = {
+    const errorResponse: ErrorResponseBody = {
       success: false,
       data: null,
       error: {

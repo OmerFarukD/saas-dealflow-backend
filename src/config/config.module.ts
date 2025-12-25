@@ -12,4 +12,3 @@ import configuration from './configuration';
   ],
 })
 export class ConfigModule {}
-

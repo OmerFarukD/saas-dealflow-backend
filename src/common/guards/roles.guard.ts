@@ -6,7 +6,15 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@prisma/client';
+import { Request } from 'express';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+
+interface RequestWithUser extends Request {
+  user: {
+    id: string;
+    role: UserRole;
+  };
+}
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -22,7 +30,8 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const { user } = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
+    const { user } = request;
 
     const hasRole = requiredRoles.some((role) => user.role === role);
 

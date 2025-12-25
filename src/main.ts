@@ -7,9 +7,7 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 
-
   app.setGlobalPrefix('api/v1');
-
 
   app.enableCors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3001',
@@ -25,7 +23,6 @@ async function bootstrap() {
       },
     }),
   );
-
 
   const config = new DocumentBuilder()
     .setTitle('SaaS Dealflow API')
@@ -43,4 +40,7 @@ async function bootstrap() {
   logger.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  console.error('Application failed to start:', err);
+  process.exit(1);
+});
