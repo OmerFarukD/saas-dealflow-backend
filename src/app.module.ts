@@ -11,15 +11,23 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { RolesGuard } from './common/guards/roles.guard';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { StartupsModule } from './startups/startups.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 @Module({
-  imports: [DatabaseModule, ConfigModule, AuthModule, UsersModule, StartupsModule],
+  imports: [
+    DatabaseModule,
+    ConfigModule,
+    AuthModule,
+    UsersModule,
+    StartupsModule,
+    MetricsModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
-    { provide: APP_GUARD, useClass: JwtAuthGuard},
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })

@@ -4,6 +4,6 @@ import { StartupsService } from './startups.service';
 
 @Module({
   controllers: [StartupsController],
-  providers: [StartupsService]
+  providers: [StartupsService],
 })
 export class StartupsModule {}

@@ -1,5 +1,20 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags, } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { StartupsService } from './startups.service';
 import { CreateStartupDto } from './dto/create-startup.dto';
 import { UpdateStartupDto } from './dto/update-startup.dto';
@@ -7,7 +22,6 @@ import { StartupQueryDto } from './dto/startup-query.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
-
 
 interface RequestUser {
   id: string;
@@ -21,7 +35,6 @@ interface RequestUser {
 @Controller('startups')
 export class StartupsController {
   constructor(private readonly startupsService: StartupsService) {}
-
 
   @Post()
   @Roles(UserRole.STARTUP)
@@ -45,7 +58,6 @@ export class StartupsController {
     return this.startupsService.create(user.id, dto);
   }
 
-
   @Get()
   @Roles(UserRole.INVESTOR, UserRole.ADMIN)
   @ApiOperation({
@@ -68,7 +80,6 @@ export class StartupsController {
   ) {
     return this.startupsService.findAll(user.id, user.role, query);
   }
-
 
   @Get('me')
   @Roles(UserRole.STARTUP)
@@ -115,7 +126,6 @@ export class StartupsController {
   ) {
     return this.startupsService.findOne(id, user.id, user.role);
   }
-
 
   @Patch(':id')
   @ApiOperation({

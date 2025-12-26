@@ -38,7 +38,11 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Access Token Yenileme' , description: "Refresh token göndererek yeni access ve refresh token oluşturma işlemi" })
+  @ApiOperation({
+    summary: 'Access Token Yenileme',
+    description:
+      'Refresh token göndererek yeni access ve refresh token oluşturma işlemi',
+  })
   async refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshTokens(dto.refreshToken);
   }

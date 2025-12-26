@@ -7,18 +7,25 @@ import {
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
+export interface PaginationMeta {
+  page?: number;
+  limit?: number;
+  total?: number;
+  totalPages?: number;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
   error?: null;
-  meta?: {
-    page?: number;
-    limit?: number;
-    total?: number;
-    totalPages?: number;
-    hasNext?: boolean;
-    hasPrevious?: boolean;
-  };
+  meta?: PaginationMeta;
+}
+
+interface PaginatedResponse<T> {
+  data: T;
+  meta: PaginationMeta;
 }
 
 /**
@@ -35,14 +42,9 @@ export class TransformInterceptor<T> implements NestInterceptor<
     next: CallHandler,
   ): Observable<ApiResponse<T>> {
     return next.handle().pipe(
-      map((response) => {
+      map((response: T | PaginatedResponse<T>): ApiResponse<T> => {
         // Check if response is a paginated result
-        if (
-          response &&
-          typeof response === 'object' &&
-          'data' in response &&
-          'meta' in response
-        ) {
+        if (this.isPaginatedResponse<T>(response)) {
           return {
             success: true,
             data: response.data,
@@ -58,6 +60,17 @@ export class TransformInterceptor<T> implements NestInterceptor<
           error: null,
         };
       }),
+    );
+  }
+
+  private isPaginatedResponse<U>(
+    response: U | PaginatedResponse<U>,
+  ): response is PaginatedResponse<U> {
+    return (
+      response !== null &&
+      typeof response === 'object' &&
+      'data' in response &&
+      'meta' in response
     );
   }
 }

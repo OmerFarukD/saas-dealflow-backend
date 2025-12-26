@@ -140,7 +140,7 @@ export class AuthService {
 
   async refreshTokens(refreshToken: string) {
     try {
-      const payload = this.jwtService.verify(refreshToken, {
+      const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
         secret: this.configService.get<string>('jwt.secret'),
       });
 
@@ -222,12 +222,16 @@ export class AuthService {
       role: user.role,
     };
 
+    const accessTokenExpiry =
+      this.configService.get<string>('jwt.accessTokenExpiresIn') ?? '15m';
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: (this.configService.get<string>('jwt.accessTokenExpiresIn') || '15m') as any,
+      expiresIn: accessTokenExpiry as `${number}${'s' | 'm' | 'h' | 'd'}`,
     });
 
+    const refreshTokenExpiry =
+      this.configService.get<string>('jwt.refreshTokenExpiresIn') ?? '7d';
     const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: (this.configService.get<string>('jwt.refreshTokenExpiresIn') || '7d') as any,
+      expiresIn: refreshTokenExpiry as `${number}${'s' | 'm' | 'h' | 'd'}`,
     });
 
     await this.prisma.user.update({

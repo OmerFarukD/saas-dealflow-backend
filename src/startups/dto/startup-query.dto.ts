@@ -1,8 +1,7 @@
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min, } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { StartupCategory, StartupStage, StartupStatus } from '@prisma/client';
-
 
 export class StartupQueryDto {
   // ============================================
