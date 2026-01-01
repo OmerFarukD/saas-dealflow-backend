@@ -10,7 +10,7 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { StartupCategory, StartupStage } from '@prisma/client';
-import { CreateFounderDto } from './create-founder.dto';
+import { CreateFounderDto } from '../../founders/dto/create-founder.dto';
 
 export class CreateStartupDto {
   @ApiProperty({ example: 'TechCorp AI' })
