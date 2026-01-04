@@ -12,6 +12,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { StartupsModule } from './startups/startups.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { FinancialsModule } from './financials/financials.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { MetricsModule } from './metrics/metrics.module';
     UsersModule,
     StartupsModule,
     MetricsModule,
+    FinancialsModule,
   ],
   controllers: [AppController],
   providers: [
