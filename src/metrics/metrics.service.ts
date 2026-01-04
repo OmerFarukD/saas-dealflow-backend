@@ -68,9 +68,7 @@ export class MetricsService {
     return startup;
   }
 
-  /**
-   * Metrik kaydının en az bir alan içerip içermediğini kontrol eder
-   */
+
   private validateNotEmpty(dto: CreateMetricDto | UpdateMetricDto): boolean {
     const metricFields = [
       'mrr',
@@ -484,9 +482,6 @@ export class MetricsService {
     };
   }
 
-  /**
-   * İki metrik arasındaki trend'leri hesaplar
-   */
   private calculateTrends(current: Metric, previous: Metric) {
     const calculateChange = (
       curr: number | null,
@@ -506,9 +501,7 @@ export class MetricsService {
         direction,
       };
     };
-
     const trends: Record<string, any> = {};
-
     const metricsToCompare: (keyof Metric)[] = [
       'mrr',
       'arr',
@@ -517,7 +510,6 @@ export class MetricsService {
       'burnRate',
       'runwayMonths',
     ];
-
     for (const metricKey of metricsToCompare) {
       const currValue = current[metricKey] as number | null;
       const prevValue = previous[metricKey] as number | null;
@@ -526,7 +518,6 @@ export class MetricsService {
         trends[metricKey] = trend;
       }
     }
-
     return Object.keys(trends).length > 0 ? trends : null;
   }
 }
