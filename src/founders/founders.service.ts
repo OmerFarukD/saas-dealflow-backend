@@ -3,121 +3,148 @@ import {
   BadRequestException,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CreateFounderDto } from './dto/create-founder.dto';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { UpdateFounderDto } from './dto/update-founder.dto';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class FoundersService {
   constructor(private prisma: PrismaService) {}
 
-  async create(startupId: string, dto: CreateFounderDto) {
+  /**
+   * Yardımcı Metod: Sahiplik ve Yetki Kontrolü
+   */
+  private async validateAccess(
+    startupId: string,
+    userId: string,
+    role: UserRole,
+  ) {
     const startup = await this.prisma.startup.findUnique({
       where: { id: startupId },
     });
 
-    if (!startup) {
-      throw new NotFoundException('Startup Bulunamadı.');
-    }
+    if (!startup) throw new NotFoundException('Startup Bulunamadı.');
 
-    // 1. İş Kuralı: Aynı startup'ta email çakışması kontrolü
+    // Hata mesajına göre senin modelinde alan adı ownerId değil userId:
+    if (role === UserRole.STARTUP && startup.userId !== userId) {
+      throw new ForbiddenException(
+        'Bu startup üzerinde işlem yapma yetkiniz yok.',
+      );
+    }
+  }
+
+  async create(
+    startupId: string,
+    userId: string,
+    role: UserRole,
+    dto: CreateFounderDto,
+  ) {
+    await this.validateAccess(startupId, userId, role);
+
     if (dto.email) {
-      const existingEmail = await this.prisma.founder.findFirst({
+      const existing = await this.prisma.founder.findFirst({
         where: { startupId, email: dto.email },
       });
-      if (existingEmail) {
-        throw new ConflictException(
-          'Bu email adresi ile kayıtlı bir founder zaten mevcut.',
-        );
-      }
+      if (existing)
+        throw new ConflictException('Bu email ile bir founder zaten mevcut.');
     }
 
-    const lastFounder = await this.prisma.founder.findFirst({
+    const last = await this.prisma.founder.findFirst({
       where: { startupId },
       orderBy: { displayOrder: 'desc' },
     });
-
-    const nextOrder = lastFounder ? lastFounder.displayOrder + 1 : 0;
 
     return this.prisma.founder.create({
       data: {
         ...dto,
         startupId,
-        displayOrder: nextOrder,
+        displayOrder: last ? last.displayOrder + 1 : 0,
       },
     });
   }
 
-  async findAll(startupId: string) {
+  async findAll(startupId: string, userId: string, role: UserRole) {
+    // ESLint hatası gitmesi için: Eğer ek bir kontrol yapmayacaksak bile
+    // validateAccess çağırarak hem startup var mı bakmış oluruz hem değişkenleri kullanırız.
+    await this.validateAccess(startupId, userId, role);
+
     return this.prisma.founder.findMany({
       where: { startupId },
       orderBy: { displayOrder: 'asc' },
     });
   }
 
-  async findOne(startupId: string, founderId: string) {
+  async findOne(
+    startupId: string,
+    founderId: string,
+    userId: string,
+    role: UserRole,
+  ) {
+    // Burada da startup varlığını ve yetkiyi kontrol ederek ESLint'i susturuyoruz
+    await this.validateAccess(startupId, userId, role);
+
     const founder = await this.prisma.founder.findFirst({
       where: { id: founderId, startupId },
     });
-
-    if (!founder) {
-      throw new NotFoundException('Founder Bulunamadı');
-    }
+    if (!founder) throw new NotFoundException('Founder Bulunamadı');
 
     return founder;
   }
 
-  async update(startupId: string, founderId: string, dto: UpdateFounderDto) {
-    // Güvenlik: Güncellenecek founder'ın o startup'a ait olduğunu doğrula
-    const founder = await this.findOne(startupId, founderId);
+  async update(
+    startupId: string,
+    founderId: string,
+    userId: string,
+    role: UserRole,
+    dto: UpdateFounderDto,
+  ) {
+    await this.validateAccess(startupId, userId, role);
 
-    return this.prisma.founder.update({
-      where: { id: founder.id },
-      data: dto,
+    // founderId kontrolü
+    const founder = await this.prisma.founder.findFirst({
+      where: { id: founderId, startupId },
     });
+    if (!founder)
+      throw new NotFoundException(
+        'Founder bulunamadı veya bu startup ile ilişkili değil.',
+      );
+
+    return this.prisma.founder.update({ where: { id: founderId }, data: dto });
   }
 
-  async remove(startupId: string, founderId: string) {
-    // Önce bu founder gerçekten bu startup'ın mı kontrol et (Güvenlik)
-    await this.findOne(startupId, founderId);
+  async remove(
+    startupId: string,
+    founderId: string,
+    userId: string,
+    role: UserRole,
+  ) {
+    await this.validateAccess(startupId, userId, role);
 
     const count = await this.prisma.founder.count({ where: { startupId } });
-
-    if (count <= 1) {
-      throw new BadRequestException(
-        'Son Founder Silinemez. Her Startup En Az 1 Founder İçermelidir.',
-      );
-    }
+    if (count <= 1) throw new BadRequestException('Son founder silinemez.');
 
     await this.prisma.founder.delete({ where: { id: founderId } });
-    return { success: true, message: 'Founder Başarıyla Silindi.' };
+    return { success: true, message: 'Founder başarıyla silindi.' };
   }
 
-  async reorder(startupId: string, founderIds: string[]) {
-    // 2. İş Kuralı: Eksik/Fazla ID kontrolü
+  async reorder(
+    startupId: string,
+    userId: string,
+    role: UserRole,
+    founderIds: string[],
+  ) {
+    await this.validateAccess(startupId, userId, role);
+
     const currentFounders = await this.prisma.founder.findMany({
       where: { startupId },
-      select: { id: true },
     });
-
     if (currentFounders.length !== founderIds.length) {
-      throw new BadRequestException(
-        'Eksik veya fazla founder ID listesi gönderildi.',
-      );
+      throw new BadRequestException('ID listesi eksik veya fazla.');
     }
 
-    // Gönderilen ID'lerin gerçekten bu startup'a ait olduğunu doğrula
-    const currentIds = currentFounders.map((f) => f.id);
-    const allIdsValid = founderIds.every((id) => currentIds.includes(id));
-
-    if (!allIdsValid) {
-      throw new BadRequestException(
-        'Gönderilen ID lerden bazıları bu startup a ait değil.',
-      );
-    }
-
-    // Transaction: Hepsi başarılı olmalı ya da hiçbiri
     return this.prisma.$transaction(
       founderIds.map((id, index) =>
         this.prisma.founder.update({
