@@ -55,10 +55,11 @@ export class FoundersController {
   @Patch(':founderId')
   @ApiOperation({ summary: 'Founder bilgilerini güncelle' })
   update(
+    @Param('startupId', ParseUUIDPipe) startupId: string,
     @Param('founderId', ParseUUIDPipe) founderId: string,
     @Body() updateFounderDto: UpdateFounderDto,
   ) {
-    return this.foundersService.update(founderId, updateFounderDto);
+    return this.foundersService.update(startupId, founderId, updateFounderDto);
   }
 
   @Delete(':founderId')
