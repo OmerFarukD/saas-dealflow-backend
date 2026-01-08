@@ -17,8 +17,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 @ApiTags('Founders')
 @Controller('startups/:startupId/founders') // Root path'i dokümana göre belirledik
 export class FoundersController {
-  constructor(private readonly foundersService: FoundersService) {
-  }
+  constructor(private readonly foundersService: FoundersService) {}
 
   @Post()
   @ApiOperation({ summary: 'Yeni founder ekle' })
@@ -56,10 +55,11 @@ export class FoundersController {
   @Patch(':founderId')
   @ApiOperation({ summary: 'Founder bilgilerini güncelle' })
   update(
+    @Param('startupId', ParseUUIDPipe) startupId: string,
     @Param('founderId', ParseUUIDPipe) founderId: string,
     @Body() updateFounderDto: UpdateFounderDto,
   ) {
-    return this.foundersService.update(founderId, updateFounderDto);
+    return this.foundersService.update(startupId, founderId, updateFounderDto);
   }
 
   @Delete(':founderId')
