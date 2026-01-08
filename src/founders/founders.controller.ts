@@ -17,8 +17,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 @ApiTags('Founders')
 @Controller('startups/:startupId/founders') // Root path'i dokümana göre belirledik
 export class FoundersController {
-  constructor(private readonly foundersService: FoundersService) {
-  }
+  constructor(private readonly foundersService: FoundersService) {}
 
   @Post()
   @ApiOperation({ summary: 'Yeni founder ekle' })
