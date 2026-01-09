@@ -13,6 +13,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { StartupsModule } from './startups/startups.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { FoundersModule } from './founders/founders.module';
+import { MarketModule } from './market/market.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { FoundersModule } from './founders/founders.module';
     StartupsModule,
     MetricsModule,
     FoundersModule,
+    MarketModule,
   ],
   controllers: [AppController],
   providers: [
